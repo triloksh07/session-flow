@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  app:
+    build: 
+      context: .
+    container_name: sessionflow_app
+    restart: unless-stopped
+    stdin_open: true 
+    tty: true        
+    # ports:
+    #   - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/sessionflow
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Mounts local code for hot-reloading (tsx)
+      - .:/usr/src/app
+      # Prevents overwriting container's node_modules with local ones
+      - /usr/src/app/node_modules
+
+  db:
+    image: postgres:16-alpine
+    container_name: sessionflow_db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=sessionflow
+    volumes:
+      # Persists semantic memory across container restarts
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sessionflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pg_data:
