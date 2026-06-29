@@ -1,14 +1,18 @@
 import { SystemMessage } from "@langchain/core/messages";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import { CONFIG } from "../../core/config";
-import { SemanticMemoryStore } from "../../db/semantic-store";
-import { SessionState } from "../state";
-import { llm } from "../../core/llm.js";
+import { CONFIG } from "../../core/config.js";
+import { SemanticMemoryStore } from "../../db/semantic-store.js";
+import type { SessionState } from "../state.js";
 
-const semanticStore = new SemanticMemoryStore(CONFIG.DB_PATH);
+const llm = new ChatGoogleGenerativeAI({
+  model: CONFIG.MODEL_NAME,
+  temperature: CONFIG.TEMPERATURE,
+});
+
+const semanticStore = new SemanticMemoryStore();
 
 export const chatNode = async (state: SessionState) => {
-  const memoryContext = semanticStore.fetchChronologicalContext();
+  const memoryContext = await semanticStore.fetchChronologicalContext();
 
   const sysMsg = new SystemMessage(`
 You are SessionFlow, a cognitive continuity assistant for an independent engineer.

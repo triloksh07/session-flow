@@ -1,6 +1,7 @@
 import * as readline from "readline";
-import { app } from "./agent/graph";
+import { setupGraph } from "./agent/graph.js";
 import { HumanMessage, AIMessage } from "@langchain/core/messages";
+import { pool } from "./db/postgres.js";
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -13,8 +14,10 @@ const question = (query: string): Promise<string> => {
 
 async function main() {
   console.log("==================================================");
-  console.log("🧠 SESSIONFLOW INITIATED (TS + SQLITE PERSISTENT)");
+  console.log("🧠 SESSIONFLOW INITIATED (POSTGRES PERSISTENCE)");
   console.log("==================================================");
+
+  const app = await setupGraph();
 
   let sessionId = await question("\nEnter Session ID:\n> ");
   sessionId = sessionId.trim() || "default_sprint";
@@ -26,6 +29,7 @@ async function main() {
 
     if (["exit", "quit"].includes(userInput.toLowerCase())) {
       console.log("Shutting down SessionFlow.");
+      await pool.end();
       rl.close();
       process.exit(0);
     }

@@ -1,19 +1,23 @@
 import { StateGraph, START, END } from "@langchain/langgraph";
-import { SessionStateAnnotation } from "./state";
-import { chatNode } from "./nodes/chat";
-import { silentExtractorNode } from "./nodes/extractor";
-import { SqliteSaver } from "@langchain/langgraph-checkpoint-sqlite";
-import Database from "better-sqlite3";
-import { CONFIG } from "../core/config";
+import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
+import { SessionStateAnnotation } from "./state.js";
+import { chatNode } from "./nodes/chat.js";
+import { silentExtractorNode } from "./nodes/extractor.js";
+import { pool } from "../db/postgres.js";
+import { semanticStore } from "../db/semantic-store.js";
 
-const threadDb = new Database(CONFIG.DB_PATH);
-const checkpointer = new SqliteSaver(threadDb);
+const checkpointer = new PostgresSaver(pool);
 
-const workflow = new StateGraph(SessionStateAnnotation)
-  .addNode("chat", chatNode)
-  .addNode("extractor", silentExtractorNode)
-  .addEdge(START, "chat")
-  .addEdge("chat", "extractor")
-  .addEdge("extractor", END);
+export const setupGraph = async () => {
+  await semanticStore.initializeSchema(); 
+  await checkpointer.setup(); 
+  
+  const workflow = new StateGraph(SessionStateAnnotation)
+    .addNode("chat", chatNode)
+    .addNode("extractor", silentExtractorNode)
+    .addEdge(START, "chat")
+    .addEdge("chat", "extractor")
+    .addEdge("extractor", END);
 
-export const app = workflow.compile({ checkpointer });
+  return workflow.compile({ checkpointer });
+};
