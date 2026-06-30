@@ -1,20 +1,14 @@
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { CONFIG } from "../../core/config.js";
-import { SemanticMemoryStore } from "../../db/semantic-store.js";
+import { semanticStore } from "../../db/semantic-store.js";
 import type { SessionState } from "../state.js";
 import { MemoryExtractionSchema } from "../schemas.js";
-
-const llm = new ChatGoogleGenerativeAI({
-  model: CONFIG.MODEL_NAME,
-  temperature: CONFIG.TEMPERATURE,
-});
-
-const semanticStore = new SemanticMemoryStore();
+import { llm } from "../../core/llm.js";
 
 export const silentExtractorNode = async (state: SessionState) => {
   const messages = state.messages;
-  
+
   if (!messages || messages.length < 2) {
     return {};
   }
@@ -41,5 +35,5 @@ If they are just saying hello, asking a question, or chatting normally without s
     }
   }
 
-  return {}; 
+  return {};
 };
