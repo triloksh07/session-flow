@@ -39,11 +39,40 @@ async function main() {
       { ...config, streamMode: "values" }
     );
 
+    // for await (const event of stream) {
+    //   if (event.messages) {
+    //     const latestMsg = event.messages[event.messages.length - 1];
+    //     if (latestMsg instanceof AIMessage && latestMsg.content) {
+    //       console.log(`\n[SessionFlow]: ${latestMsg.content}`);
+    //     }
+    //   }
+    // }
+
     for await (const event of stream) {
       if (event.messages) {
         const latestMsg = event.messages[event.messages.length - 1];
-        if (latestMsg instanceof AIMessage && latestMsg.content) {
-          console.log(`\n[SessionFlow]: ${latestMsg.content}`);
+
+        if (latestMsg instanceof AIMessage) {
+          let textToPrint = "";
+
+          if (typeof latestMsg.content === "string") {
+            textToPrint = latestMsg.content;
+          } else if (Array.isArray(latestMsg.content)) {
+            textToPrint = latestMsg.content
+              .filter((block: any) => block.type === "text")
+              .map((block: any) => block.text)
+              .join("\n");
+          }
+
+          if (textToPrint.trim()) {
+            console.log(`\n[SessionFlow]: ${textToPrint}`);
+          }
+
+          if (latestMsg.tool_calls && latestMsg.tool_calls.length > 0) {
+            latestMsg.tool_calls.forEach((tool: any) => {
+              console.log(`\n[System]: 🛠️ SessionFlow is executing '${tool.name}'...`);
+            });
+          }
         }
       }
     }

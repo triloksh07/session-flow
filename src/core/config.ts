@@ -7,6 +7,7 @@ export const CONFIG = {
   TEMPERATURE: Number(process.env.TEMPERATURE ?? 0),
   DATABASE_URL: process.env.DATABASE_URL,
   GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
+  MCP_SERVER_PATH: process.env.MCP_SERVER_PATH!,
 };
 
 if (!CONFIG.GOOGLE_API_KEY || !CONFIG.DATABASE_URL) {
