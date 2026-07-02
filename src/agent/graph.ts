@@ -17,20 +17,6 @@ import type { RunnableToolLike } from "@langchain/core/runnables";
 
 const checkpointer = new PostgresSaver(pool);
 
-// export const setupGraphMainOld = async () => {
-//   await semanticStore.initializeSchema();
-//   await checkpointer.setup();
-
-//   const workflow = new StateGraph(SessionStateAnnotation)
-//     .addNode("chat", chatNode)
-//     .addNode("extractor", silentExtractorNode)
-//     .addEdge(START, "chat")
-//     .addEdge("chat", "extractor")
-//     .addEdge("extractor", END);
-
-//   return workflow.compile({ checkpointer });
-// };
-
 /**
  * @file graph.ts
  * @description Wires the cognitive architecture. Now includes a conditional 
@@ -49,18 +35,6 @@ export const setupGraph = async () => {
   // const tools = mcpBridge.getLangChainTools();
   const mcpTools = mcpBridge.getLangChainTools();
   const searchTool = createWebSearchTool();
-  // const tavilyTool = createWebSearchTool();
-
-  // const searchTool = new DynamicStructuredTool({
-  //   name: "tavily_search",
-  //   description: "Search the web using Tavily API",
-  //   schema: z.object({
-  //     query: z.string().describe("Search query"),
-  //   }),
-  //   func: async ({ query }) => {
-  //     return await tavilyTool.invoke(query);
-  //   },
-  // });
 
   const allTools = [...mcpTools, searchTool as unknown as RunnableToolLike];
   // const allTools = [...mcpTools, searchTool];

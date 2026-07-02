@@ -17,14 +17,22 @@ export const silentExtractorNode = async (state: SessionState) => {
 
   const sysMsg = new SystemMessage(`
 You are a background memory processor. Analyze the user's latest input.
-Extract the information IF the user states:
-- A new task or project
-- A long-term goal or preference
-- A random idea
-- A personal fact, identity, role, or background information.
 
-If they are just saying hello, asking a question, or chatting normally without stating facts/goals, return an empty list.
-  `);
+Extract ONLY if the input contains:
+
+- A new task or project (work item, sprint goal).
+- A durable long-term goal or recurring preference.
+- A random idea worth logging for later.
+- A personal fact, identity, or role relevant across sessions.
+
+Do NOT extract:
+
+- Greetings, casual chat, or transient emotions.
+- One-off questions or ephemeral details.
+- Redundant information already stored.
+
+Output must be minimal and structured. If nothing qualifies, return an empty list.
+`);
 
   const structuredLlm = llm.withStructuredOutput(MemoryExtractionSchema);
   const result = await structuredLlm.invoke([sysMsg, new HumanMessage(humanInput as string)]);
