@@ -39,15 +39,6 @@ async function main() {
       { ...config, streamMode: "values" }
     );
 
-    // for await (const event of stream) {
-    //   if (event.messages) {
-    //     const latestMsg = event.messages[event.messages.length - 1];
-    //     if (latestMsg instanceof AIMessage && latestMsg.content) {
-    //       console.log(`\n[SessionFlow]: ${latestMsg.content}`);
-    //     }
-    //   }
-    // }
-
     for await (const event of stream) {
       if (event.messages) {
         const latestMsg = event.messages[event.messages.length - 1];
