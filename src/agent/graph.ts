@@ -8,6 +8,12 @@ import { pool } from "../db/postgres.js";
 import { semanticStore } from "../db/semantic-store.js";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 import { DeepSessionMCPBridge } from "../core/mcp-client.js";
+import { createWebSearchTool } from "./tools/serach.js";
+
+import { DynamicStructuredTool, Tool } from "@langchain/core/tools";
+
+import z from "zod";
+import type { RunnableToolLike } from "@langchain/core/runnables";
 
 const checkpointer = new PostgresSaver(pool);
 
@@ -40,8 +46,27 @@ export const setupGraph = async () => {
   const mcpBridge = new DeepSessionMCPBridge();
   await mcpBridge.connect();
 
-  const tools = mcpBridge.getLangChainTools();
-  const toolNode = new ToolNode(tools);
+  // const tools = mcpBridge.getLangChainTools();
+  const mcpTools = mcpBridge.getLangChainTools();
+  const searchTool = createWebSearchTool();
+  // const tavilyTool = createWebSearchTool();
+
+  // const searchTool = new DynamicStructuredTool({
+  //   name: "tavily_search",
+  //   description: "Search the web using Tavily API",
+  //   schema: z.object({
+  //     query: z.string().describe("Search query"),
+  //   }),
+  //   func: async ({ query }) => {
+  //     return await tavilyTool.invoke(query);
+  //   },
+  // });
+
+  const allTools = [...mcpTools, searchTool as unknown as RunnableToolLike];
+  // const allTools = [...mcpTools, searchTool];
+
+  const toolNode = new ToolNode(allTools);
+  // const toolNode = new ToolNode(mcpTools);
 
   // Define the conditional routing logic with strict type safety guards
   const routePostChat = (state: SessionState) => {
@@ -73,7 +98,7 @@ export const setupGraph = async () => {
 
   // Construct the workflow loop, wrapping the chat node to inject the dynamic tools
   const workflow = new StateGraph(SessionStateAnnotation)
-    .addNode("chat", (state) => chatNode(state, tools))
+    .addNode("chat", (state) => chatNode(state, allTools))
     .addNode("tools", toolNode)
     .addNode("extractor", silentExtractorNode)
     .addEdge(START, "chat")
