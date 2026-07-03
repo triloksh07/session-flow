@@ -58,15 +58,37 @@ appServer.get("/api/session/:session_id", async (req, res) => {
     const rawMessages = state.values.messages;
     const chatHistory: ChatMessage[] = [];
 
-    for (const msg of rawMessages) {
-      const msgType = msg._getType();
+    // for (const msg of rawMessages) {
+    //   // const msgType = msg._getType();
 
-      if (msgType === "human") {
-        chatHistory.push({ role: "human", content: msg.content });
-      } else if (msgType === "ai" && msg.content) {
+    //   if (msgType === "human") {
+    //     chatHistory.push({ role: "human", content: msg.content });
+    //   } else if (msgType === "ai" && msg.content) {
+    //     let textContent = "";
+
+    //     // Unpack text arrays safely to prevent [object Object] serialization
+    //     if (typeof msg.content === "string") {
+    //       textContent = msg.content;
+    //     } else if (Array.isArray(msg.content)) {
+    //       textContent = msg.content
+    //         .filter((block: any) => block.type === "text")
+    //         .map((block: any) => block.text)
+    //         .join("\n");
+    //     }
+
+    //     // Only append to historical context if conversational content is found
+    //     if (textContent.trim()) {
+    //       chatHistory.push({ role: "ai", content: textContent });
+    //     }
+    //   }
+    // }
+
+    for (const msg of rawMessages) {
+      if (msg instanceof HumanMessage) {
+        chatHistory.push({ role: "human", content: msg.content as string });
+      } else if (msg instanceof AIMessage && msg.content) {
         let textContent = "";
 
-        // Unpack text arrays safely to prevent [object Object] serialization
         if (typeof msg.content === "string") {
           textContent = msg.content;
         } else if (Array.isArray(msg.content)) {
@@ -76,7 +98,6 @@ appServer.get("/api/session/:session_id", async (req, res) => {
             .join("\n");
         }
 
-        // Only append to historical context if conversational content is found
         if (textContent.trim()) {
           chatHistory.push({ role: "ai", content: textContent });
         }
@@ -116,18 +137,10 @@ appServer.get("/api/chat/stream", async (req, res) => {
     const graphApp = await setupGraph();
     const state = await graphApp.getState(config);
 
-    let stream;
-    if (!state.values || !state.values.messages) {
-      // New Session execution baseline
-      stream = await graphApp.stream(
-        { messages: [new HumanMessage(message)] },
-        { ...config, streamMode: "values" }
-      );
-    } else {
-      // Feed human context directly into the ongoing checkpoint sequence and resume execution
-      await graphApp.updateState(config, { messages: [new HumanMessage(message)] });
-      stream = await graphApp.stream(null, { ...config, streamMode: "values" });
-    }
+        const stream = await graphApp.stream(
+          { messages: [new HumanMessage(message)] },
+          { ...config, streamMode: "values" }
+        );
 
     for await (const event of stream) {
       if (event.messages && event.messages.length > 0) {
@@ -166,7 +179,7 @@ appServer.get("/api/chat/stream", async (req, res) => {
     // Capture post-stream lifecycle changes to determine graph final state
     const finalState = await graphApp.getState(config);
     const finalStatus = finalState.next && finalState.next.length > 0 ? "paused" : "completed";
-    
+
     res.write(`data: ${JSON.stringify({ status: finalStatus })}\n\n`);
   } catch (error: any) {
     res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
@@ -179,7 +192,7 @@ const bootServer = async () => {
   try {
     console.log("Initializing SessionFlow Graph & MCP Bridge...");
     graphApp = await setupGraph();
-    
+
     const PORT = process.env.PORT || 8000;
     appServer.listen(PORT, () => {
       console.log(`🚀 SessionFlow Service Engine streaming on port ${PORT}`);

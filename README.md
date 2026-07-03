@@ -66,3 +66,9 @@ If compiling the project to native ECMAScript Modules (ESM) for production deplo
 npx codemod-add-import-extensions --tsconfig tsconfig.json
 
 ```
+
+### Run Docker
+
+```bash
+docker exec -it sessionflow_db psql -U username -d sessionflow
+```
