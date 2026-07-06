@@ -1,8 +1,11 @@
 // import { ChatOpenAI } from "@langchain/openai";
 import { StateGraph, END } from "@langchain/langgraph";
 import { HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
-import { executeReadQuery } from "./execute_read_query.js"; // The tool we wrote earlier
+import { executeReadQuery } from "./execute_read_query.js";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { executeRawQuery } from "./execute_read_query.js";
+import { ChatOpenRouter } from "@langchain/openrouter";
+import { CONFIG } from "../../core/config.js";
 
 // Define the schema/state for our Text-to-SQL graph
 interface SqlAgentState {
@@ -12,13 +15,12 @@ interface SqlAgentState {
     retryCount: number;
 }
 
-// Production Rule: Enforce Output Determinism (Temperature = 0)
-// const sqlModel = new ChatOpenAI({ modelName: "gpt-4o", temperature: 0 });
-const sqlModel = new ChatGoogleGenerativeAI({ model: "gemini-falsh-2.5", temperature: 0 });
-
-// 1. GENERATOR NODE: Writes the SQL query
-async function generateSqlQueryNode(state: SqlAgentState) {
-    const systemContext = `
+const sqlModel = new ChatOpenRouter({
+    model: CONFIG.MODEL_NAME,
+    temperature: CONFIG.TEMPERATURE,
+    maxTokens: 1024,
+});
+const systemContext = `
     You are an expert PostgreSQL developer specialized in the Ergast Formula 1 database.
     Your task is to write a valid SQL query to answer the user's question.
     
@@ -35,6 +37,25 @@ async function generateSqlQueryNode(state: SqlAgentState) {
     Return ONLY the executable SQL block wrapped inside markdown code blocks, nothing else.
   `;
 
+// 1. GENERATOR NODE: Writes the SQL query
+async function generateSqlQueryNode(state: SqlAgentState) {
+    //     const systemContext = `
+    //     You are an expert PostgreSQL developer specialized in the Ergast Formula 1 database.
+    //     Your task is to write a valid SQL query to answer the user's question.
+
+    //     CRITICAL DATABASE RULES:
+    //     1. Only use SELECT queries. Never attempt data modification.
+    //     2. Always append a strict 'LIMIT 50' to protect compute resources unless a lower limit is requested.
+    //     3. Empty or missing text data is represented as the literal string '\\N'. If filtering text columns for missing data, check for column = '\\N'.
+
+    //     AVAILABLE SUMMARY VIEW (v_race_results_summary):
+    //     - Columns: year, race_name, race_date, driver_name, driver_nationality, constructor_name, grid, position, points, laps, race_time_ms
+    //     Use this view for general questions about race standings, winners, points, and times to bypass heavy manual JOIN syntax.
+
+    //     If the previous attempt resulted in an error, analyze the error log provided in the context and correct your syntax completely.
+    //     Return ONLY the executable SQL block wrapped inside markdown code blocks, nothing else.
+    //   `;
+
     const contextMessages = [
         new SystemMessage(systemContext),
         ...state.messages
@@ -48,7 +69,7 @@ async function generateSqlQueryNode(state: SqlAgentState) {
 
     // Extract SQL from markdown block
     const sqlMatch = response.content.toString().match(/```sql([\s\S]*?)```/) || response.content.toString().match(/```([\s\S]*?)```/);
-    const sqlQuery = sqlMatch ? sqlMatch[1].trim() : response.content.toString().trim();
+    const sqlQuery = sqlMatch ? sqlMatch[1]!.trim() : response.content.toString().trim();
 
     return { currentSql: sqlQuery, retryCount: state.retryCount + 1 };
 }
@@ -72,10 +93,19 @@ async function lintSqlQueryNode(state: SqlAgentState) {
 
 // 3. EXECUTION NODE: Runs the query using our custom tool
 async function executeSqlQueryNode(state: SqlAgentState) {
-    // Call the tool functionally inside our graph workflow
-    const toolResult = await executeReadQuery.invoke({ query: state.currentSql });
 
-    if (toolResult.toString().startsWith("SQL Execution Error")) {
+    if (!state.currentSql) {
+        return { sqlError: "SQL Execution Error: No SQL query was generated." };
+    }
+
+    // Call the tool functionally inside our graph workflow
+    // const toolResult = await executeReadQuery.invoke({ query: state.currentSql });
+
+    // Call the raw TS function instead of the LangChain tool.invoke()
+    const toolResult = await executeRawQuery(state.currentSql);
+    // const toolResult = await executeReadQuery(state.currentSql);
+
+    if (toolResult.toString().startsWith("SQL Execution Error") || toolResult.startsWith("Error:")) {
         return { sqlError: toolResult.toString() };
     }
 

@@ -33,6 +33,25 @@ src/
 
 ```
 
+## To be Merged
+```text
+src/
+├── core/
+│   ├── config.ts          # Single source of truth for all Env Vars (Fixes the ECONNREFUSED)
+│   └── prompts.ts         # Centralized prompt templates (No more hardcoded strings in nodes)
+├── db/
+│   └── supabase.ts        # The initialized pg Pool instance using config.ts
+├── agent/
+│   ├── sql-graph.ts       # The specific Sub-Graph for Text-to-SQL routing
+│   ├── state.ts           # SqlAgentState with the strictly typed retry counter
+│   └── nodes/
+│       ├── 1-discovery.ts # Fetches schema dynamically from information_schema
+│       ├── 2-generator.ts # LLM writes SQL using prompts.ts
+│       ├── 3-validator.ts # PROGRAMMATIC TypeScript validator (Regex/AST parsing, NO LLM)
+│       ├── 4-executor.ts  # Runs the query against db/supabase.ts
+│       └── 5-synthesizer.ts # Formats the final answer
+```
+
 ## Getting Started
 
 ### Prerequisites
